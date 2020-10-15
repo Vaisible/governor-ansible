@@ -1,0 +1,18 @@
+---
+governor_network_name: vaisible
+
+governor_app_image_name: vaisible/governor
+governor_app_image_tag: latest
+governor_app_contaner_name: vaisible_app
+governor_app_contaner_command: docker-entrypoint.sh endpoint
+
+governor_worker_contaner_name: vaisible_worker
+governor_worker_contaner_command: docker-entrypoint.sh worker
+
+governor_beat_contaner_name: vaisible_beat
+governor_beat_contaner_command: docker-entrypoint.sh beat
+
+governor_db_image_name: postgres
+governor_db_image_tag: "12"
+governor_db_contaner_name: vaisible_db
+governor_db_name: vaisible

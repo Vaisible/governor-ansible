@@ -1,0 +1,91 @@
+---
+- name: Install required system packages
+  apt: name={{ item }} state=latest update_cache=yes
+  loop: [
+    'python3-pip',
+    'python3-setuptools'
+  ]
+
+- name: Install Docker Module for Python
+  pip:
+    name: docker
+
+- name: Create a network
+  docker_network:
+    name: "{{ governor_network_name }}"
+
+- name: Generate Passwords
+  set_fact:
+    AES_KEY: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=20') }}"
+    PG_PASSWORD: "{{ lookup('password', '/dev/null chars=ascii_lowercase,digits length=20') }}"
+
+- name: Create RC directory
+  file:
+    path: /root/.vaisible
+    state: directory
+
+- name: Write down AES_KEY password
+  copy:
+    content: "{{ AES_KEY }}"
+    dest: /root/.vaisible/aes
+    mode: 0400
+    owner: root
+    group: root
+
+- name: Install Governor Database Container
+  docker_container:
+    name: "{{ governor_db_contaner_name }}"
+    image: "{{ governor_db_image_name }}:{{ governor_db_image_tag }}"
+    state: started
+    restart: yes
+    networks:
+      - name: "{{ governor_network_name }}"
+    env:
+      PGDATA: /data
+      POSTGRES_DB: "{{ governor_db_name }}"
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: "{{ PG_PASSWORD }}"
+
+- name: Install Governor App Container
+  docker_container:
+    name: "{{ governor_app_contaner_name }}"
+    image: "{{ governor_app_image_name }}:{{ governor_app_image_tag }}"
+    command: "{{ governor_app_contaner_command }}"
+    state: started
+    restart: yes
+    networks:
+      - name: "{{ governor_network_name }}"
+    ports:
+      - 8080:8000
+    env:
+      POSTGRES_HOST: vaisible_db
+      POSTGRES_PASSWORD: "{{ PG_PASSWORD }}"
+      AES_KEY: "{{ AES_KEY }}"
+
+- name: Install Governor Worker Container
+  docker_container:
+    name: "{{ governor_worker_contaner_name }}"
+    image: "{{ governor_app_image_name }}:{{ governor_app_image_tag }}"
+    command: "{{ governor_worker_contaner_command }}"
+    state: started
+    restart: yes
+    networks:
+      - name: "{{ governor_network_name }}"
+    env:
+      POSTGRES_HOST: vaisible_db
+      POSTGRES_PASSWORD: "{{ PG_PASSWORD }}"
+      AES_KEY: "{{ AES_KEY }}"
+
+- name: Install Governor Beat Container
+  docker_container:
+    name: "{{ governor_beat_contaner_name }}"
+    image: "{{ governor_app_image_name }}:{{ governor_app_image_tag }}"
+    command: "{{ governor_beat_contaner_command }}"
+    state: started
+    restart: yes
+    networks:
+      - name: "{{ governor_network_name }}"
+    env:
+      POSTGRES_HOST: vaisible_db
+      POSTGRES_PASSWORD: "{{ PG_PASSWORD }}"
+      AES_KEY: "{{ AES_KEY }}"
